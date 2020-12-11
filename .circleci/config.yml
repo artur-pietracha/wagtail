@@ -1,0 +1,76 @@
+version: 2
+
+docker_image: &docker_image
+  docker:
+    - image: circleci/python:3.5.5
+
+install_docker_compose: &install_docker_compose |
+  curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-`uname -s`-`uname -m` > ~/docker-compose
+  chmod +x ~/docker-compose
+  sudo mv ~/docker-compose /usr/local/bin/docker-compose
+
+jobs:
+  test:
+    <<: *docker_image
+    steps:
+      - setup_remote_docker
+      - run:
+          command: *install_docker_compose
+      - checkout
+      - run:
+          command: make test_ci
+
+  deploy_test:
+    <<: *docker_image
+    steps:
+      - setup_remote_docker
+      - run:
+          command: *install_docker_compose
+      - checkout
+      - run:
+          command: make deploy_test
+
+  deploy_stage:
+    <<: *docker_image
+    steps:
+      - setup_remote_docker
+      - run:
+          command: *install_docker_compose
+      - checkout
+      - run:
+          command: make deploy_stage
+
+  deploy_prod:
+    <<: *docker_image
+    steps:
+      - setup_remote_docker
+      - run:
+          command: *install_docker_compose
+      - checkout
+      - run:
+          command: make deploy_prod
+
+
+workflows:
+  version: 2
+  test_and_deploy:
+    jobs:
+      - test
+      - deploy_test:
+          requires:
+            - test
+          filters:
+            branches:
+              only: develop
+      - deploy_stage:
+          requires:
+            - test
+          filters:
+            branches:
+              only: release
+      - deploy_prod:
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
